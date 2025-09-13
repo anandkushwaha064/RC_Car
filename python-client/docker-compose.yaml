@@ -1,0 +1,15 @@
+services:
+  car.controller:
+    build: .
+    container_name: car.controller
+    volumes:
+      - .:/usr/src/app   
+    # Mount local 'code' folder into container
+    working_dir: /usr/src/app
+    # command: python app.py
+    stdin_open: true
+    tty: true
+    privileged: true        # gives access to /dev/input
+    devices:
+      - /dev/input:/dev/input
+ 

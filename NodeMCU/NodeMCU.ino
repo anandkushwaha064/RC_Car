@@ -1,6 +1,7 @@
 #include <SoftwareSerial.h>
-SoftwareSerial bluetoothSerial(13, 15); // Tx pin of the bluetooth module must be connected to Rx pin on arduino
-                                        // Rx pin of the bluetooth module must be connected to Tx pin on arduino
+SoftwareSerial bluetoothSerial(13, 15); 
+// Tx pin of the bluetooth module must be connected to Rx pin on arduino
+// Rx pin of the bluetooth module must be connected to Tx pin on arduino
 const int head=12;
 const int left=4;
 const int right=5;
@@ -95,6 +96,6 @@ void headLights()
         {
            Digital('W');
         }
-  }
+}
 
  
