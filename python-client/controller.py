@@ -2,7 +2,7 @@ import socket
 import keyboard
 import time
 
-TCP_IP = "192.168.1.3"  # NodeMCU IP
+TCP_IP = "192.168.10.8"  # NodeMCU IP
 TCP_PORT = 4210
 
 # Create TCP socket
@@ -19,6 +19,7 @@ KEY_MAP = {
     "F": "S",  # Stop
     "B": "U",  # Backlight ON
     "N": "u",  # Backlight OFF
+    "H": "H",  # Horn
     "1": "1",
     "2": "2",      
     "3": "3",
@@ -30,6 +31,7 @@ KEY_MAP = {
     "9": "9",
     "0": "0"
 }
+last_command = None  # Track last command sent
 
 try:
     while True:
@@ -37,18 +39,22 @@ try:
             print("Exiting...")
             break
 
-        event = keyboard.read_event()
+        # Default to STOP unless a key is pressed
         command = "S"
-        if event.event_type == keyboard.KEY_DOWN:
-            key = event.name.upper()
-            if key in KEY_MAP:
-                command = KEY_MAP[key]
-                sock.sendall((command + "\n").encode())
-                print(f" => Sent: {command}")
-                continue
-            
-        # sock.sendall((command + "\n").encode())
-        # print(f"Sent: {command}")           
+
+        for key, mapped in KEY_MAP.items():
+            if keyboard.is_pressed(key.lower()):
+                command = mapped
+                break
+
+        # Only send if command changes (avoid spamming same value)
+        if command != last_command:
+            sock.sendall((command + "\n").encode())
+            print(f" => Sent: {command}")
+            last_command = command
+
+        time.sleep(0.05)  # small throttle (20 times/sec)
+
 
 except KeyboardInterrupt:
     pass
