@@ -145,6 +145,7 @@ function SpeedPicker({ value, onValueChange }: SpeedPickerProps) {
   );
 }
 
+
 // Custom Button Component with Press Effects
 interface CustomButtonProps {
   title: string;
@@ -322,7 +323,7 @@ export default function ControllerScreen() {
 
   const sendSpeedCommand = (speedValue: number) => {
     if (tcpRef.current && tcpRef.current.isConnected()) {
-      tcpRef.current.sendCommand(`SPEED${speedValue}`);
+      tcpRef.current.sendCommand(`${speedValue}`);
     } else {
       console.log('Cannot send speed command, server not connected');
     }
@@ -347,75 +348,92 @@ export default function ControllerScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Car Controller</Text>
-
-      {/* Server Info */}
-      <View style={styles.serverInfoContainer}>
-        <Text style={styles.serverInfoText}>
-          Server: {serverIp}:{serverPort}
-        </Text>
-        <TouchableOpacity onPress={openSettings} style={styles.settingsButton}>
-          <Text style={styles.settingsButtonText}>⚙️</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Connection Status Indicator */}
-      <View style={styles.statusContainer}>
-        <View
-          style={[
-            styles.statusDot,
-            { backgroundColor: connected ? 'green' : 'red' },
-          ]}
-        />
-        <Text style={styles.statusText}>{statusMessage}</Text>
-      </View>
-
-      {/* Speed Controller */}
-      <View style={styles.speedContainer}>
-        <Text style={styles.speedLabel}>Speed Control</Text>
-        <View style={styles.speedDisplay}>
-          <Text style={styles.speedValue}>{speed}</Text>
-          <Text style={styles.speedScale}>/ 9</Text>
-        </View>
+      {/* Header Section - All in One Row */}
+      <View style={styles.headerSection}>
+        <Text style={styles.title}>Car Controller</Text>
         
-        {/* Scrollable Speed Picker */}
-        <SpeedPicker
-          value={speed}
-          onValueChange={(newSpeed) => {
-            setSpeed(newSpeed);
-            sendSpeedCommand(newSpeed);
-          }}
-        />
-      </View>
-
-      {/* Control Buttons */}
-      <View style={styles.row}>
-        <CustomButton title="Forward (F)" onPress={() => send('F')} style={styles.primaryButton} />
-      </View>
-      <View style={styles.row}>
-        <CustomButton title="Left (L)" onPress={() => send('L')} style={styles.directionButton} />
-        <CustomButton title="Stop (S)" onPress={() => send('S')} style={styles.stopButton} />
-        <CustomButton title="Right (R)" onPress={() => send('R')} style={styles.directionButton} />
-      </View>
-      <View style={styles.row}>
-        <CustomButton title="Back (B)" onPress={() => send('B')} style={styles.primaryButton} />
-      </View>
-      <View style={styles.row}>
-        <CustomButton title="Backlight ON (U)" onPress={() => send('U')} style={styles.secondaryButton} />
-        <CustomButton title="Backlight OFF (u)" onPress={() => send('u')} style={styles.secondaryButton} />
-        <CustomButton title="Horn (H)" onPress={() => send('H')} style={styles.hornButton} />
-      </View>
-
-      {/* Retry Button */}
-      {!connected && (
-        <View style={styles.retryContainer}>
-          <CustomButton 
-            title="Retry Connection" 
-            onPress={handleRetryConnection} 
-            style={styles.retryButton} 
-          />
+        {/* Server Info */}
+        <View style={styles.serverInfoContainer}>
+          <Text style={styles.serverInfoText}>
+            Server: {serverIp}:{serverPort}
+          </Text>
+          <TouchableOpacity onPress={openSettings} style={styles.settingsButton}>
+            <Text style={styles.settingsButtonText}>⚙️</Text>
+          </TouchableOpacity>
         </View>
-      )}
+
+        {/* Connection Status Indicator */}
+        <View style={styles.statusContainer}>
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: connected ? 'green' : 'red' },
+            ]}
+          />
+          <Text style={styles.statusText}>{statusMessage}</Text>
+        </View>
+      </View>
+
+      {/* Main Content - Horizontal Layout */}
+      <View style={styles.mainContent}>
+        {/* Left Side - Speed Controller */}
+        <View style={styles.leftPanel}>
+          <View style={styles.speedContainer}>
+            <Text style={styles.speedLabel}>Speed Control</Text>
+            <View style={styles.speedDisplay}>
+              <Text style={styles.speedValue}>{speed}</Text>
+              <Text style={styles.speedScale}>/ 9</Text>
+            </View>
+            
+            {/* Scrollable Speed Picker */}
+            <SpeedPicker
+              value={speed}
+              onValueChange={(newSpeed) => {
+                setSpeed(newSpeed);
+                sendSpeedCommand(newSpeed);
+              }}
+            />
+          </View>
+        </View>
+
+        {/* Right Side - Control Buttons */}
+        <View style={styles.rightPanel}>
+          {/* Light and Horn Controls - Moved Up */}
+          <View style={styles.additionalSection}>
+            <View style={styles.row}>
+              <CustomButton title="Backlight ON (U)" onPress={() => send('U')} style={styles.secondaryButton} />
+              <CustomButton title="Backlight OFF (u)" onPress={() => send('u')} style={styles.secondaryButton} />
+              <CustomButton title="Horn (H)" onPress={() => send('H')} style={styles.hornButton} />
+            </View>
+          </View>
+
+          {/* Movement Controls - Moved Down */}
+          <View style={styles.movementSection}>
+            <View style={styles.row}>
+              <CustomButton title="Forward (F)" onPress={() => send('F')} style={styles.primaryButton} />
+            </View>
+            <View style={styles.row}>
+              <CustomButton title="Left (L)" onPress={() => send('L')} style={styles.directionButton} />
+              <CustomButton title="Stop (S)" onPress={() => send('S')} style={styles.stopButton} />
+              <CustomButton title="Right (R)" onPress={() => send('R')} style={styles.directionButton} />
+            </View>
+            <View style={styles.row}>
+              <CustomButton title="Back (B)" onPress={() => send('B')} style={styles.primaryButton} />
+            </View>
+          </View>
+
+          {/* Retry Button */}
+          {!connected && (
+            <View style={styles.retryContainer}>
+              <CustomButton 
+                title="Retry Connection" 
+                onPress={handleRetryConnection} 
+                style={styles.retryButton} 
+              />
+            </View>
+          )}
+        </View>
+      </View>
 
       {/* Settings Modal */}
       {showSettings && (
@@ -470,36 +488,64 @@ export default function ControllerScreen() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center',
     backgroundColor: '#f5f5f5',
-    padding: 20,
+    padding: 10,
+  },
+  headerSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    paddingHorizontal: 5,
+  },
+  mainContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  leftPanel: {
+    flex: 0.1,
+  },
+  rightPanel: {
+    flex: 0.9,
+    marginLeft: -350,
+  },
+  movementSection: {
+    marginBottom: 15,
+    width: '100%',
+    
+  },
+  additionalSection: {
+    marginTop: 20,
+    marginBottom: 25,
+    width: '100%',
   },
   row: { 
     flexDirection: 'row', 
-    margin: 10,
+    margin: 5,
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: { 
-    fontSize: 28, 
-    marginBottom: 20,
+    fontSize: 20, 
     fontWeight: 'bold',
     color: '#333',
+    flex: 0.4,
   },
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 30,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
     backgroundColor: 'white',
-    borderRadius: 20,
+    borderRadius: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 2,
+    elevation: 2,
+    // flex: 0.3,
   },
   statusDot: {
     width: 12,
@@ -513,11 +559,11 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   customButton: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 30,
     paddingVertical: 15,
-    borderRadius: 12,
-    marginHorizontal: 5,
-    minWidth: 80,
+    borderRadius: 10,
+    marginHorizontal: 10,
+    minWidth: 70,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -527,25 +573,30 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   buttonText: {
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: '600',
     color: 'white',
     textAlign: 'center',
   },
   primaryButton: {
     backgroundColor: '#4CAF50',
+
   },
   directionButton: {
     backgroundColor: '#2196F3',
+
   },
   stopButton: {
     backgroundColor: '#f44336',
+
   },
   secondaryButton: {
     backgroundColor: '#FF9800',
+
   },
   hornButton: {
     backgroundColor: '#9C27B0',
+
   },
   retryContainer: {
     marginTop: 20,
@@ -553,23 +604,22 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     backgroundColor: '#2196F3',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
+
   },
   serverInfoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: 'white',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
     borderRadius: 10,
-    marginBottom: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    // flex: 0.,
   },
   serverInfoText: {
     fontSize: 14,
@@ -645,51 +695,57 @@ const styles = StyleSheet.create({
   },
   speedContainer: {
     backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 20,
+    borderRadius: 10,
+    padding: 8,
+    marginLeft: 30,
+    marginTop: 50,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    width: '25%',
+    height: '40%',
     elevation: 3,
   },
   speedLabel: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 15,
+    marginBottom: 8,
     color: '#333',
   },
   speedDisplay: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'center',
-    marginBottom: 20,
+    // marginBottom: 10,
+    height: 60,
   },
   speedValue: {
-    fontSize: 48,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#4CAF50',
   },
   speedScale: {
-    fontSize: 24,
+    fontSize: 16,
     color: '#666',
-    marginLeft: 5,
+    marginLeft: 2,
   },
   speedPickerContainer: {
-    height: 180,
-    marginBottom: 15,
+    height: 150,
+    marginTop: 10,
+    marginBottom:4 ,
     position: 'relative',
   },
   speedPickerScrollView: {
-    height: 180,
+    height: 100,
   },
   speedPickerContent: {
     paddingVertical: 0,
+    
   },
   speedPickerItem: {
-    height: 60,
+    height: 65,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -707,7 +763,7 @@ const styles = StyleSheet.create({
   },
   speedPickerIndicator: {
     position: 'absolute',
-    top: 60,
+    top: 20,
     left: 0,
     right: 0,
     height: 60,

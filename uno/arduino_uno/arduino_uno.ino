@@ -15,7 +15,10 @@ AF_DCMotor motor4(4, MOTOR34_1KHZ);
 NewPing sonar1(TRIG_PIN1, ECHO_PIN1, 100);
 NewPing sonar2(TRIG_PIN2, ECHO_PIN2, 100);
 
-char command;
+char command = 'F';
+char lastcommand = command;
+char directionCommands[] = { 'F', 'B', 'L', 'R', 'S' };
+
 int sp = 0;
 const int backLight = 10;
 int distance = 100;
@@ -24,17 +27,34 @@ int distance = 100;
 void setup() {
   Serial.begin(9600);
   pinMode(backLight, OUTPUT);
-  pinMode(HORN_PIN, OUTPUT);    // horn pin as output
+  pinMode(HORN_PIN, OUTPUT);  // horn pin as output
 }
 
 void loop() {
   if (Serial.available()) {
-    command = Serial.read();
-    Serial.println(command);
-    int val = command;
-    checkcase(command);
-    if (val >= 48 && val <= 57)
-      speedchange(val - 48);
+
+    if (isDigit(Serial.peek())) {   // if the next char is a digit
+      int num = Serial.parseInt();  // grab whole number like 70
+      // get the last number for stream
+      num=num%10;
+      
+      Serial.print("Speed number received: ");
+      Serial.println(num);
+      speedchange(num);
+    } else {
+      command = Serial.read();  // otherwise normal char command
+      Serial.print("Command: ");
+      Serial.println(command);
+      if (lastcommand != command) {
+        for (int i = 0; i < 5; i++) {
+          if (command == directionCommands[i]) {
+            lastcommand = command;  // update last command only if it's F/B/L/R/S
+            break;
+          }
+        }
+      }
+      checkcase(command);
+    }
   }
 }
 
@@ -85,13 +105,21 @@ void checkcase(char command) {
   }
 }
 void speedchange(int spe) {
-  sp = 255;
+  Serial.print("speed ");
+  Serial.println(spe);
+  if (spe < 0 || spe > 9) { return; }
+
   if (spe == 0) {
     Stop();
+    return;
   }
+  // to cover 10 do ++
   spe++;
-  sp = (spe * sp) / 10;
-
+  sp = (255 * spe) / 10;
+  Serial.println("Changing speed");
+  Serial.println(sp);
+  // To apply new speed to all wheels
+  checkcase(lastcommand);
 }
 
 void forward() {
@@ -129,25 +157,28 @@ void back() {
 }
 
 void left() {
-  motor1.setSpeed(0);         //Define maximum velocity
-  motor1.run(FORWARD);        //rotate the motor anti-clockwise
-  motor2.setSpeed((sp / 4));  //Define maximum velocity
-  motor2.run(FORWARD);        //rotate the motor anti-clockwise
-  motor3.setSpeed(sp);        //Define maximum velocity
-  motor3.run(FORWARD);        //rotate the motor clockwise
-  motor4.setSpeed(sp);        //Define maximum velocity
-  motor4.run(FORWARD);        //rotate the motor clockwis
+  int sleepOnLeft = (sp > 100) ? 100 : sp;
+
+  motor1.setSpeed(sleepOnLeft);  //Define maximum velocity
+  motor1.run(BACKWARD);          //rotate the motor anti-clockwise
+  motor2.setSpeed(sleepOnLeft);  //Define maximum velocity
+  motor2.run(BACKWARD);          //rotate the motor anti-clockwise
+  motor3.setSpeed(sleepOnLeft);  //Define maximum velocity
+  motor3.run(FORWARD);           //rotate the motor clockwise
+  motor4.setSpeed(sleepOnLeft);  //Define maximum velocity
+  motor4.run(FORWARD);           //rotate the motor clockwis
 }
 
 void right() {
-  motor1.setSpeed(sp);        //Define maximum velocity
-  motor1.run(FORWARD);        //rotate the motor clockwise
-  motor2.setSpeed(sp);        //Define maximum velocity
-  motor2.run(FORWARD);        //rotate the motor clockwise
-  motor3.setSpeed(0);         //Define maximum velocity
-  motor3.run(FORWARD);        //rotate the motor anti-clockwise
-  motor4.setSpeed((sp / 4));  //Define maximum velocity
-  motor4.run(FORWARD);        //rotate the motor anti-clockwise
+  int sleepOnRight = (sp > 100) ? 100 : sp;
+  motor1.setSpeed(sleepOnRight);  //Define maximum velocity
+  motor1.run(FORWARD);            //rotate the motor clockwise
+  motor2.setSpeed(sleepOnRight);  //Define maximum velocity
+  motor2.run(FORWARD);            //rotate the motor clockwise
+  motor3.setSpeed(sleepOnRight);  //Define maximum velocity
+  motor3.run(BACKWARD);           //rotate the motor anti-clockwise
+  motor4.setSpeed(sleepOnRight);  //Define maximum velocity
+  motor4.run(BACKWARD);           //rotate the motor anti-clockwise
 }
 
 void Stop() {
