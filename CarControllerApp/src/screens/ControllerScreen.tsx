@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Vibration, Platform, TextInput, Alert, ScrollView, Dimensions } from 'react-native';
+import Slider from '@react-native-community/slider';
 import TcpClient from '../network/TcpClient';
 
 // Simple storage implementation (you can replace with AsyncStorage later)
@@ -41,106 +42,36 @@ const triggerVibration = async () => {
   }
 };
 
-// Custom Scrollable Speed Picker Component
-interface SpeedPickerProps {
+// Speed Slider Component using React Native Community Slider
+interface SpeedSliderProps {
   value: number;
   onValueChange: (value: number) => void;
 }
 
-function SpeedPicker({ value, onValueChange }: SpeedPickerProps) {
-  const scrollViewRef = useRef<ScrollView>(null);
-  const itemHeight = 60;
-  const paddingTop = itemHeight * 1.5; // Top padding height
-  const [isUserScrolling, setIsUserScrolling] = useState(false);
-  
-  useEffect(() => {
-    // Scroll to current value when component mounts
-    const timer = setTimeout(() => {
-      if (scrollViewRef.current && !isUserScrolling) {
-        const scrollY = paddingTop + (value * itemHeight);
-        console.log(`Initial scroll to: ${scrollY} for value: ${value}`);
-        scrollViewRef.current.scrollTo({ y: scrollY, animated: false });
-      }
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, [value, isUserScrolling]);
-
-  const handleScrollBeginDrag = () => {
-    setIsUserScrolling(true);
-  };
-
-  const handleScroll = (event: any) => {
-    const scrollY = event.nativeEvent.contentOffset.y;
-    // Account for top padding
-    const adjustedScrollY = scrollY - paddingTop;
-    const newValue = Math.round(adjustedScrollY / itemHeight);
-    const clampedValue = Math.max(0, Math.min(9, newValue));
-    
-    console.log(`Scroll: ${scrollY}, Adjusted: ${adjustedScrollY}, Value: ${clampedValue}, Current: ${value}`);
-    
-    if (clampedValue !== value && clampedValue >= 0 && clampedValue <= 9) {
-      onValueChange(clampedValue);
-      triggerVibration(); // Haptic feedback when value changes
-    }
-  };
-
-  const handleScrollEndDrag = () => {
-    setIsUserScrolling(false);
-  };
-
-  const handleMomentumScrollEnd = (event: any) => {
-    setIsUserScrolling(false);
-    const scrollY = event.nativeEvent.contentOffset.y;
-    // Account for top padding
-    const adjustedScrollY = scrollY - paddingTop;
-    const newValue = Math.round(adjustedScrollY / itemHeight);
-    const clampedValue = Math.max(0, Math.min(9, newValue));
-    
-    // Snap to exact position
-    if (scrollViewRef.current) {
-      const targetY = paddingTop + (clampedValue * itemHeight);
-      scrollViewRef.current.scrollTo({ y: targetY, animated: true });
+function SpeedSlider({ value, onValueChange }: SpeedSliderProps) {
+  const handleValueChange = (val: number) => {
+    const roundedValue = Math.round(val);
+    if (roundedValue !== value) {
+      onValueChange(roundedValue);
+      triggerVibration();
     }
   };
 
   return (
-    <View style={styles.speedPickerContainer}>
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.speedPickerScrollView}
-        contentContainerStyle={styles.speedPickerContent}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={itemHeight}
-        decelerationRate="fast"
-        onScroll={handleScroll}
-        onScrollBeginDrag={handleScrollBeginDrag}
-        onScrollEndDrag={handleScrollEndDrag}
-        onMomentumScrollEnd={handleMomentumScrollEnd}
-        scrollEventThrottle={16}
-        bounces={true}
-        alwaysBounceVertical={true}
-      >
-        {/* Add padding items at top and bottom for better UX */}
-        <View style={{ height: itemHeight * 1.5 }} />
-        
-        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((speedValue) => (
-          <View key={speedValue} style={styles.speedPickerItem}>
-            <Text style={[
-              styles.speedPickerText,
-              speedValue === value ? styles.speedPickerTextActive : styles.speedPickerTextInactive
-            ]}>
-              {speedValue}
-            </Text>
-          </View>
-        ))}
-        
-        {/* Add padding items at bottom */}
-        <View style={{ height: itemHeight * 1.5 }} />
-      </ScrollView>
-      
-      {/* Selection indicator */}
-      <View style={styles.speedPickerIndicator} />
+    <View style={styles.sliderContainer}>
+      <View style={styles.sliderWrapper}>
+        <Slider
+          style={styles.slider}
+          minimumValue={0}
+          maximumValue={9}
+          step={1}
+          value={value}
+          minimumTrackTintColor="#4CAF50"
+          maximumTrackTintColor="#E0E0E0"
+          thumbTintColor="#4CAF50"
+          onValueChange={handleValueChange}
+        />
+      </View>
     </View>
   );
 }
@@ -210,6 +141,116 @@ function CustomButton({ title, onPress, style, textStyle }: CustomButtonProps) {
         activeOpacity={0.8}
       >
         <Text style={[styles.buttonText, textStyle]}>{title}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+// Round Directional Button Component
+interface RoundDirectionButtonProps {
+  direction: 'up' | 'down' | 'left' | 'right' | 'stop';
+  onPress: () => void;
+  style?: any;
+}
+
+function RoundDirectionButton({ direction, onPress, style }: RoundDirectionButtonProps) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(1)).current;
+  const [isPressed, setIsPressed] = useState(false);
+  const commandInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startSendingCommands = () => {
+    if (commandInterval.current) return; // Already sending commands
+    
+    // Send command immediately
+    onPress();
+    triggerVibration();
+    
+    // Set up continuous command sending
+    commandInterval.current = setInterval(() => {
+      onPress();
+    }, 100); // Send command every 100ms while pressed
+  };
+
+  const stopSendingCommands = () => {
+    if (commandInterval.current) {
+      clearInterval(commandInterval.current);
+      commandInterval.current = null;
+    }
+  };
+
+  const handlePressIn = () => {
+    setIsPressed(true);
+    startSendingCommands();
+    
+    Animated.parallel([
+      Animated.timing(scaleAnim, {
+        toValue: 0.9,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 0.7,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const handlePressOut = () => {
+    setIsPressed(false);
+    stopSendingCommands();
+    
+    Animated.parallel([
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (commandInterval.current) {
+        clearInterval(commandInterval.current);
+      }
+    };
+  }, []);
+
+  const getIcon = () => {
+    switch (direction) {
+      case 'up': return '↑';
+      case 'down': return '↓';
+      case 'left': return '←';
+      case 'right': return '→';
+      case 'stop': return '⏹';
+      default: return '?';
+    }
+  };
+
+  return (
+    <Animated.View
+      style={[
+        {
+          transform: [{ scale: scaleAnim }],
+          opacity: opacityAnim,
+        },
+      ]}
+    >
+      <TouchableOpacity
+        style={[styles.roundDirectionButton, style]}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.roundButtonIcon}>{getIcon()}</Text>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -379,14 +420,14 @@ export default function ControllerScreen() {
         {/* Left Side - Speed Controller */}
         <View style={styles.leftPanel}>
           <View style={styles.speedContainer}>
-            <Text style={styles.speedLabel}>Speed Control</Text>
+            <Text style={styles.speedLabel}>Speed</Text>
             <View style={styles.speedDisplay}>
               <Text style={styles.speedValue}>{speed}</Text>
               <Text style={styles.speedScale}>/ 9</Text>
             </View>
             
-            {/* Scrollable Speed Picker */}
-            <SpeedPicker
+            {/* Horizontal Speed Slider */}
+            <SpeedSlider
               value={speed}
               onValueChange={(newSpeed) => {
                 setSpeed(newSpeed);
@@ -400,25 +441,25 @@ export default function ControllerScreen() {
         <View style={styles.rightPanel}>
           {/* Light and Horn Controls - Moved Up */}
           <View style={styles.additionalSection}>
-            <View style={styles.row}>
-              <CustomButton title="Backlight ON (U)" onPress={() => send('U')} style={styles.secondaryButton} />
-              <CustomButton title="Backlight OFF (u)" onPress={() => send('u')} style={styles.secondaryButton} />
-              <CustomButton title="Horn (H)" onPress={() => send('H')} style={styles.hornButton} />
-            </View>
+            {/* <View style={styles.row}> */}
+              <CustomButton title="Backlight ON" onPress={() => send('U')} style={styles.secondaryButton} />
+              <CustomButton title="Backlight OFF" onPress={() => send('u')} style={styles.secondaryButton} />
+              <CustomButton title="Horn" onPress={() => send('H')} style={styles.hornButton} />
+              <CustomButton title="Stop" onPress={() => send('S')} style={styles.stopButton} />
+            {/* </View> */}
           </View>
 
-          {/* Movement Controls - Moved Down */}
+          {/* Movement Controls - Round Directional Buttons */}
           <View style={styles.movementSection}>
-            <View style={styles.row}>
-              <CustomButton title="Forward (F)" onPress={() => send('F')} style={styles.primaryButton} />
+            <View style={styles.directionButtonRow}>
+              <RoundDirectionButton direction="up" onPress={() => send('F')} style={styles.forwardButton} />
             </View>
-            <View style={styles.row}>
-              <CustomButton title="Left (L)" onPress={() => send('L')} style={styles.directionButton} />
-              <CustomButton title="Stop (S)" onPress={() => send('S')} style={styles.stopButton} />
-              <CustomButton title="Right (R)" onPress={() => send('R')} style={styles.directionButton} />
+            <View style={styles.directionButtonRow}>
+              <RoundDirectionButton direction="left" onPress={() => send('L')} style={styles.leftButton} />
+              <RoundDirectionButton direction="right" onPress={() => send('R')} style={styles.rightButton} />
             </View>
-            <View style={styles.row}>
-              <CustomButton title="Back (B)" onPress={() => send('B')} style={styles.primaryButton} />
+            <View style={styles.directionButtonRow}>
+              <RoundDirectionButton direction="down" onPress={() => send('B')} style={styles.backwardButton} />
             </View>
           </View>
 
@@ -487,57 +528,84 @@ export default function ControllerScreen() {
 
 const styles = StyleSheet.create({
   container: { 
-    flex: 1, 
+    // flex: 1, 
     backgroundColor: '#f5f5f5',
     padding: 10,
   },
   headerSection: {
+    height:'13%',
+    width:'100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: '1%',
     paddingHorizontal: 5,
   },
   mainContent: {
-    flex: 1,
+    // flex: 1,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+    borderRadius: 15,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    padding: 10,
+    backgroundColor: '#FAFAFA',
+    height:'85%',
+    width:'100%',
   },
   leftPanel: {
-    flex: 0.1,
+    // flex: 0.3,
+    width: '10%',
+    // borderWidth: 1,
+    // borderColor: '#4CAF50',
+    borderRadius: 10,
+    padding: 5,
   },
   rightPanel: {
-    flex: 0.9,
-    marginLeft: -350,
+    // flex: 0.7,
+    // marginLeft: -350,
+    width: '88%',
+    borderWidth: 1,
+    borderColor: '#2196F3',
+    borderRadius: 10,
+    padding: 5,
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   movementSection: {
-    marginBottom: 15,
-    width: '100%',
+    height:'100%',
+    width: '55%',
     
+    // marginBottom: 15,
+    marginTop: '5%',
+    // borderWidth: 1,
+    // borderColor: '#E0E0E0',
   },
   additionalSection: {
-    marginTop: 20,
-    marginBottom: 25,
-    width: '100%',
+    height:'100%',
+    width: '35%',
+    // borderWidth: 1,
+    // borderColor: '#E0E0E0',
   },
   row: { 
-    flexDirection: 'row', 
+    flexDirection: 'column', 
     margin: 5,
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: { 
-    fontSize: 20, 
+    fontSize: 28, 
     fontWeight: 'bold',
     color: '#333',
-    flex: 0.4,
+    flex: 0.5,
   },
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: '2%',
+    paddingVertical: '1%',
     backgroundColor: 'white',
     borderRadius: 12,
     shadowColor: '#000',
@@ -545,6 +613,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
     // flex: 0.3,
   },
   statusDot: {
@@ -559,11 +629,12 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   customButton: {
-    paddingHorizontal: 30,
-    paddingVertical: 15,
+    paddingHorizontal: '2%',
+    paddingVertical: '5%',
+    margin:'3%',
     borderRadius: 10,
     marginHorizontal: 10,
-    minWidth: 70,
+    width:'80%',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -571,6 +642,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 3,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   buttonText: {
     fontSize: 18,
@@ -580,23 +653,23 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: '#4CAF50',
-
+    borderColor: '#45A049',
   },
   directionButton: {
     backgroundColor: '#2196F3',
-
+    borderColor: '#1976D2',
   },
   stopButton: {
     backgroundColor: '#f44336',
-
+    borderColor: '#D32F2F',
   },
   secondaryButton: {
     backgroundColor: '#FF9800',
-
+    borderColor: '#F57C00',
   },
   hornButton: {
     backgroundColor: '#9C27B0',
-
+    borderColor: '#7B1FA2',
   },
   retryContainer: {
     marginTop: 20,
@@ -604,21 +677,23 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     backgroundColor: '#2196F3',
-
+    borderColor: '#1976D2',
   },
   serverInfoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: 'white',
-    paddingHorizontal: 6,
-    paddingVertical: 6,
+    paddingHorizontal: '2%',
+    paddingVertical: '0.4%',
     borderRadius: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
     // flex: 0.,
   },
   serverInfoText: {
@@ -654,6 +729,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 10,
     elevation: 10,
+    borderWidth: 3,
+    borderColor: '#2196F3',
   },
   settingsTitle: {
     fontSize: 20,
@@ -672,8 +749,8 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   textInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
+    borderWidth: 2,
+    borderColor: '#4CAF50',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -687,42 +764,49 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     backgroundColor: '#757575',
+    borderColor: '#616161',
     flex: 0.45,
   },
   saveButton: {
     backgroundColor: '#4CAF50',
+    borderColor: '#45A049',
     flex: 0.45,
   },
+
+
   speedContainer: {
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 8,
-    marginLeft: 30,
-    marginTop: 50,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    width: '25%',
-    height: '40%',
-    elevation: 3,
+    width:'100%',
+    height: '100%',
+    // backgroundColor: 'white',
+    // borderRadius: 10,
+    padding: 10,
+    // shadowColor: '#000',
+    // shadowOffset: { width: 0, height: 2 },
+    // shadowOpacity: 0.1,
+    // shadowRadius: 4,
+    // elevation: 3,
+    // borderWidth: 2,
+    // borderColor: '#4CAF50',
+    // justifyContent: 'space-between',
   },
   speedLabel: {
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 8,
+    marginTop: '-40%',
+    marginBottom: '0.5%',
     color: '#333',
   },
   speedDisplay: {
+    marginTop: '-40%',
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'center',
-    // marginBottom: 10,
-    height: 60,
+    marginBottom: 5,
+    height: 30,
   },
   speedValue: {
-    fontSize: 28,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#4CAF50',
   },
@@ -731,46 +815,84 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 2,
   },
-  speedPickerContainer: {
-    height: 150,
-    marginTop: 10,
-    marginBottom:4 ,
-    position: 'relative',
+  // Speed Slider Styles (Vertical)
+  sliderContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: '-11%',
+    // marginBottom: 10,
+    width: '100%',
+    height: '90%',
+    paddingVertical: '1%',
+    backgroundColor: '#F8F8F8',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
-  speedPickerScrollView: {
-    height: 100,
-  },
-  speedPickerContent: {
-    paddingVertical: 0,
-    
-  },
-  speedPickerItem: {
-    height: 65,
+  sliderWrapper: {
+    width: '60%',
+    height: '80%',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  speedPickerText: {
-    fontSize: 32,
+  slider: {
+    width: 200,
+    height: 80,
+    transform: [{ rotate: '90deg' }],
+  },
+  // Round Directional Button Styles
+  roundDirectionButton: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  roundButtonIcon: {
+    fontSize: 60,
     fontWeight: 'bold',
-    textAlign: 'center',
+    color: 'white',
   },
-  speedPickerTextActive: {
-    color: '#4CAF50',
-    fontSize: 40,
+  directionButtonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 8,
+    gap: 15,
   },
-  speedPickerTextInactive: {
-    color: '#CCCCCC',
+  forwardButton: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#45A049',
+    marginRight:'1%',
+    marginLeft:'55%'
   },
-  speedPickerIndicator: {
-    position: 'absolute',
-    top: 20,
-    left: 0,
-    right: 0,
-    height: 60,
-    borderTopWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: '#4CAF50',
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-    pointerEvents: 'none',
+  backwardButton: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#45A049',
+    marginTop:'-20%',
+    marginLeft:'55%'
+  },
+  leftButton: {
+    backgroundColor: '#2196F3',
+    borderColor: '#1976D2',
+    marginRight:'5%',
+    marginLeft:'32%',
+    marginTop:'-30%'
+  },
+  rightButton: {
+    backgroundColor: '#2196F3',
+    borderColor: '#1976D2',
+    marginLeft:'7%',
+    marginTop:'-48%'
+  },
+  stopRoundButton: {
+    backgroundColor: '#f44336',
+    borderColor: '#D32F2F',
   },
 });
